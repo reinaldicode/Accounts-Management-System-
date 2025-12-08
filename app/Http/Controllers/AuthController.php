@@ -5,25 +5,61 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use App\Models\User;
 use App\Models\AuditLog;
+use App\Models\UserSession;
 use App\Helpers\AMSHelper;
 
 class AuthController extends Controller
 {
     /**
+     * Helper Private: Generate Token & Redirect ke App Client
+     */
+    private function generateSsoTokenAndRedirect($user, $returnUrl)
+    {
+        // 1. Buat Token Random (Tiket Masuk)
+        $token = Str::random(64);
+        
+        // 2. Simpan di tabel user_sessions (Hanya valid 2 menit)
+        UserSession::create([
+            'user_id' => $user->iduser,
+            'token' => $token,
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+            'expires_at' => now()->addMinutes(2), 
+            'last_activity_at' => now()
+        ]);
+        
+        // 3. Susun URL Redirect
+        // Cek apakah return_url sudah punya tanda tanya '?'
+        $separator = (parse_url($returnUrl, PHP_URL_QUERY) == NULL) ? '?' : '&';
+        
+        // Redirect: https://docoline.com/auth/callback?token=XYZ123
+        return redirect($returnUrl . $separator . 'token=' . $token);
+    }
+
+    /**
      * Show login page
      */
     public function showLogin(Request $request)
     {
-        // Check if already logged in
-        if (session()->has('ams_user')) {
-            return redirect()->route('dashboard');
-        }
-
         // Get return URL and system code from query params
         $returnUrl = $request->query('return_url');
         $systemCode = $request->query('system');
+
+        // LOGIC SSO: Jika User SUDAH Login di AMS
+        if (session()->has('ams_user')) {
+            $user = session('ams_user');
+            
+            // Dan ada request dari Aplikasi Lain (Docoline/Inventory)
+            if ($returnUrl) {
+                // Auto-Redirect tanpa minta password lagi
+                return $this->generateSsoTokenAndRedirect($user, $returnUrl);
+            }
+            
+            return redirect()->route('dashboard');
+        }
 
         return view('auth.login', compact('returnUrl', 'systemCode'));
     }
@@ -110,10 +146,11 @@ class AuthController extends Controller
 
         AuditLog::log($user->iduser, null, 'login_success', 'success');
 
-        // Redirect to return URL or dashboard
+        // LOGIC SSO: Cek Return URL setelah login sukses
         $returnUrl = $request->input('return_url');
+        
         if ($returnUrl) {
-            return redirect($returnUrl);
+            return $this->generateSsoTokenAndRedirect($user, $returnUrl);
         }
 
         return redirect()->route('dashboard');

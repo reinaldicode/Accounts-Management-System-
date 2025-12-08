@@ -8,7 +8,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
-        // api: __DIR__.'/../routes/api.php',  // Comment dulu
+        api: __DIR__.'/../routes/api.php',  // ✅ SUDAH DI-UNCOMMENT (Aktif!)
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
@@ -16,9 +16,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             // AMS Middleware
             'ams.auth' => \App\Http\Middleware\CheckAMSSession::class,  // ← Untuk web session
-            'ams.api.auth' => \App\Http\Middleware\AMSAuthentication::class,  // ← Untuk API JWT (nanti)
+            'ams.api.auth' => \App\Http\Middleware\AMSAuthentication::class,  // ← Untuk API JWT
             'ams.system' => \App\Http\Middleware\CheckSystemAccess::class,
-            'ams.api_key' => \App\Http\Middleware\ValidateSystemAPIKey::class,
+            'ams.api_key' => \App\Http\Middleware\ValidateSystemAPIKey::class,  // ← Dipakai di routes/api.php
             'ams.active' => \App\Http\Middleware\CheckUserActive::class,
             'ams.permission' => \App\Http\Middleware\CheckPermission::class,
         ]);
