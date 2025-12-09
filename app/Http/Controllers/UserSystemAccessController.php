@@ -14,7 +14,9 @@ class UserSystemAccessController extends Controller
 {
     public function index(Request $request)
     {
-        $query = UserSystemAccess::with(['user', 'system', 'role']);
+        $query = UserSystemAccess::with(['user', 'system', 'role'])
+            // FIX UTAMA: cegah data orphan (user_id yang tidak ada user)
+            ->whereHas('user');
 
         // Filter by user
         if ($request->filled('user_id')) {
@@ -26,8 +28,10 @@ class UserSystemAccessController extends Controller
             $query->where('system_id', $request->system_id);
         }
 
+        // Final data
         $accesses = $query->orderBy('created_at', 'desc')->paginate(20);
 
+        // Additional data
         $users = User::where('active', 'y')->get();
         $systems = System::where('is_active', 1)->get();
 
