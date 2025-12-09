@@ -28,7 +28,10 @@ class UserSystemAccess extends Model
         'updated_at' => 'datetime',
     ];
 
-    // Relationships
+    /**
+     * FIX UTAMA:
+     * - memastikan relasi benar: user_id → iduser
+     */
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id', 'iduser');
@@ -36,12 +39,12 @@ class UserSystemAccess extends Model
 
     public function system()
     {
-        return $this->belongsTo(System::class, 'system_id');
+        return $this->belongsTo(System::class, 'system_id', 'id');
     }
 
     public function role()
     {
-        return $this->belongsTo(Role::class, 'role_id');
+        return $this->belongsTo(Role::class, 'role_id', 'id');
     }
 
     public function grantedBy()
@@ -49,17 +52,11 @@ class UserSystemAccess extends Model
         return $this->belongsTo(User::class, 'granted_by', 'iduser');
     }
 
-    // Helper methods
+    // Helper
     public function isActive()
     {
-        if (!$this->is_active) {
-            return false;
-        }
-
-        if ($this->expires_at && $this->expires_at->isPast()) {
-            return false;
-        }
-
+        if (!$this->is_active) return false;
+        if ($this->expires_at && $this->expires_at->isPast()) return false;
         return true;
     }
 
