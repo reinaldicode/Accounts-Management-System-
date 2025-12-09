@@ -15,7 +15,6 @@ class UserSystemAccessController extends Controller
     public function index(Request $request)
     {
         $query = UserSystemAccess::with(['user', 'system', 'role'])
-
             // FIX UTAMA: cegah data orphan (user_id yang tidak ada user)
             ->whereHas('user');
 
@@ -55,8 +54,13 @@ class UserSystemAccessController extends Controller
             'system_id' => 'required|exists:systems,id',
             'role_id' => 'required|exists:roles,id',
             'expires_at' => 'nullable|date|after:today',
+            // Validasi input tambahan untuk JSON Metadata (Opsional tapi disarankan)
+            'section' => 'nullable|string',
+            'state'   => 'nullable|string', 
+            'level'   => 'nullable|integer'
         ]);
 
+        // Cek duplikasi akses
         $exists = UserSystemAccess::where('user_id', $request->user_id)
             ->where('system_id', $request->system_id)
             ->exists();
@@ -64,6 +68,17 @@ class UserSystemAccessController extends Controller
         if ($exists) {
             return back()->with('error', 'User sudah memiliki akses ke system ini')->withInput();
         }
+
+        // KUMPULKAN DATA SPESIFIK APLIKASI (JSON)
+        // Ini logic adaptasi kita agar App Doc bisa baca jabatannya
+        $metaData = [
+            'section' => $request->input('section'), // ex: "QC"
+            'state'   => $request->input('state'),   // ex: "approver"
+            'level'   => $request->input('level')    // ex: 1
+        ];
+
+        // Bersihkan array dari value null agar rapi di DB
+        $metaData = array_filter($metaData, fn($value) => !is_null($value));
 
         $access = UserSystemAccess::create([
             'user_id' => $request->user_id,
@@ -73,15 +88,18 @@ class UserSystemAccessController extends Controller
             'granted_at' => now(),
             'granted_by' => session('ams_user_id'),
             'expires_at' => $request->expires_at,
+            // Simpan JSON (Model akan otomatis cast ke JSON jika sudah disetting di Model)
+            'access_metadata' => !empty($metaData) ? $metaData : null, 
         ]);
 
         AuditLog::log(session('ams_user_id'), $access->system_id, 'access_granted', 'success', [
             'user_id' => $access->user_id,
             'system_id' => $access->system_id,
-            'role_id' => $access->role_id
+            'role_id' => $access->role_id,
+            'metadata' => $metaData // Log juga metadata-nya
         ]);
 
-        return redirect()->route('access.index')->with('success', 'Access berhasil diberikan');
+        return redirect()->route('access.index')->with('success', 'Access berhasil diberikan dengan konfigurasi role spesifik');
     }
 
     public function revoke($id)

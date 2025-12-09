@@ -18,6 +18,7 @@ class UserSystemAccess extends Model
         'granted_at',
         'granted_by',
         'expires_at',
+        'access_metadata', // ✅ Ditambahkan untuk menyimpan data JSON
     ];
 
     protected $casts = [
@@ -26,6 +27,7 @@ class UserSystemAccess extends Model
         'expires_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'access_metadata' => 'array', // ✅ Otomatis convert JSON <-> Array
     ];
 
     /**
